@@ -15,7 +15,7 @@ void setup() {
       for (int i = 0; i < 58374; i++){
         DAC0(chirp[i]);
       }
-      delay(1000);
+      delay(50);
    }
 
     //noInterrupts();
