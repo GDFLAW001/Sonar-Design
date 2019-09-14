@@ -38,9 +38,19 @@ array).
 
 ### Some Theory
 
-![image1](/Images/image1.png)
-![image2](/Images/image2.png)
-![image3](/Imagees/image3.png)
+#### Simple 1D pulse-echo sonar
+![image1](/Images/Image1.png)
+
+#### Matched filtering of received signal 
+Radar/sonar transmits a chirp pulse (wide bandwidth for fine resolution; long in
+duration for high energy. Received signal is passed through a matched filter.
+Output waveform has improved peak SNR. Below is shown a simulation of one
+echo.
+![image2](/Images/Image2.png)
+
+#### 2D/3D Sonar Imaging System operating at 40 kHz
+![image3](/Imagees/Image3.png)
+
 
 ### Received Waveforms on oscilloscope when testing 1-D sonar
 
