@@ -5,11 +5,11 @@
 
 #### This project split into milestones
 	
-* ##### Create Documentation for user requirements, design calculations, sequence diagrams, activity diagrams, etc. 
-* ##### Simulate a 1-D chirp pulse transmission and reception 
-* ##### Build and test 1-D sonar
-* ##### Simulate 2-D sonar with fan beam image
-* ##### Build and test 2-D sonar imaging sysem.
+1. Create Documentation for user requirements, design calculations, sequence diagrams, activity diagrams, etc. 
+2. Simulate a 1-D chirp pulse transmission and reception 
+3. Build and test 1-D sonar
+4. Simulate 2-D sonar with fan beam image
+5. Build and test 2-D sonar imaging sysem.
 
 #### File Descriptions:
  - chirp_gen.ipynb used to generate array of values in chirp (int values pre-adjusted for DAC) 
