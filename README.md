@@ -36,6 +36,20 @@ other for steering a receive beam. This achieves 3D imaging with a
 minimum number of channels (compared to a conventional NxN receiving
 array).
 
-![](Images/image1.png)
-![](Images/image2.png)
-![](Imagees/image3.png)
+### Some Theory
+
+![image1](/Images/image1.png)
+![image2](/Images/image2.png)
+![image3](/Imagees/image3.png)
+
+### Received Waveforms on oscilloscope when testing 1-D sonar
+
+
+![image1](/Images/scope_0.png)
+![image2](/Images/scope_1.png)
+![image3](/Imagees/scope_2.png)
+![image1](/Images/scope_3.png)
+![image2](/Images/scope_4.png)
+![image3](/Imagees/scope_5.png)
+![image1](/Images/scope_6.png)
+![image2](/Images/scope_7.png)
