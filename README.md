@@ -36,3 +36,6 @@ other for steering a receive beam. This achieves 3D imaging with a
 minimum number of channels (compared to a conventional NxN receiving
 array).
 
+![](image1.png)
+![](image2.png)
+![](image3.png)
