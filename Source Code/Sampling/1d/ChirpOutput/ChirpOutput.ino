@@ -1,8 +1,12 @@
+// high frequency chirp generation using teensy 3.6 DAC0.
+
+#include "chirpout.h"
+
 #include <ADC.h>
 #include <DMAChannel.h>
 
-#define BUFFER_SIZE 20000                  // up to 85% of dynamic memory (65,536 bytes)
-#define SAMPLE_RATE 400000                   // see below maximum values
+#define BUFFER_SIZE 10000                  // up to 85% of dynamic memory (65,536 bytes)
+#define SAMPLE_RATE 500000                   // see below maximum values
 #define SAMPLE_AVERAGING 0                  // 0, 4, 8, 16 or 32
 #define SAMPLING_GAIN 1                     // 1, 2, 4, 8, 16, 32 or 64
 #define SAMPLE_RESOLUTION 12                // 8, 10, 12 or 16 
@@ -48,8 +52,27 @@ ADC_CONVERSION_SPEED  conv_speed     = ADC_CONVERSION_SPEED::VERY_HIGH_SPEED;
 // Processing Buffer
 uint16_t processed_buf[BUFFER_SIZE]; // processed data buffer
 
-void setup() { // =====================================================
+#define DAC0(a) *(volatile int16_t *)&(DAC0_DAT0L)=a
 
+void setup() {
+  analogWriteResolution(12);
+
+  extern volatile uint16_t chirp[58374];
+
+  SIM_SCGC2 |= SIM_SCGC2_DAC0; // enable DAC clock
+  DAC0_C0 = DAC_C0_DACEN | DAC_C0_DACRFS; // enable the DAC module, 3.3V reference
+
+   while (1){
+      for (int i = 0; i < 58374; i++){
+        DAC0(chirp[i]);
+      }
+      delay(50);
+   }
+
+}
+
+void setupADC()
+{
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(readPin0, INPUT); // single ended
 
@@ -69,8 +92,7 @@ void setup() { // =====================================================
   
   // LED on, setup complete
   digitalWriteFast(ledPin, HIGH);
-
-} // setup =========================================================
+}
 
 int          inByte   = 0;
 String inNumberString = "";
@@ -79,10 +101,8 @@ boolean   chunk1_sent = false;
 boolean   chunk2_sent = false;
 boolean   chunk3_sent = false;
 
-
-void loop() { // ===================================================
-
-  // Keep track of loop time
+void loop(){
+   // Keep track of loop time
   currentTime = micros();
   // Commands:
   // c initiate single conversion
@@ -110,13 +130,8 @@ void loop() { // ===================================================
   if ((currentTime-lastDisplay) >= DISPLAY_INTERVAL) {
     lastDisplay = currentTime;
     adc->printError();
-    adc->resetError();
-  } 
-    
-  
-
-} // end loop ======================================================
-
+    adc->resetError();}
+}
 
 // ADC
 void setup_ADC_single(void) {

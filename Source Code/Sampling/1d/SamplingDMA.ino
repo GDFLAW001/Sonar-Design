@@ -2,7 +2,7 @@
 #include <DMAChannel.h>
 
 #define BUFFER_SIZE 20000                  // up to 85% of dynamic memory (65,536 bytes)
-#define SAMPLE_RATE 400000                   // see below maximum values
+#define SAMPLE_RATE 1000000                   // see below maximum values
 #define SAMPLE_AVERAGING 0                  // 0, 4, 8, 16 or 32
 #define SAMPLING_GAIN 1                     // 1, 2, 4, 8, 16, 32 or 64
 #define SAMPLE_RESOLUTION 12                // 8, 10, 12 or 16 
