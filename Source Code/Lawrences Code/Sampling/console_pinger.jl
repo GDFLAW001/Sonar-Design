@@ -2,8 +2,10 @@
 # Data is read from a serial device and lines (but not individual keypresses)
 # are written to the device asynchronously.
 
-using LibSerialPort
-using PyPlot
+@time using LibSerialPort
+@time using PyPlot
+@time using FFTW
+include("chirp.jl");
 
 function serial_loop(sp::SerialPort)
     input_line = ""
@@ -43,6 +45,23 @@ function console(args...)
     serial_loop(mcu)
 end
 
+function rect(t)
+    N = length(t)
+    x = zeros(N)  # create array of zeros
+    for n=1:N
+        abs_t = abs(t[n]);    
+        if abs_t > 0.5 
+            x[n]=0.0
+        elseif abs_t < 0.5 
+            x[n]=1.0
+        else
+            x[n]=0.5     # case of t[n] = 0.5 (rising edge) or -0.5 (falling edge) 
+        end
+    end
+    return x
+
+end
+
 function continuousplot(sp::SerialPort)
     #Setup variables
     S=29200 #Number of samples expected
@@ -55,9 +74,45 @@ function continuousplot(sp::SerialPort)
     t = collect(0:dt:0.05840000000000002); # t=0:dt:t_max defines a “range”.
     r = c*t/2;
 
+    N = length(t);
+    Δf = 1/(N*dt) # spacing in frequency domain
+    #create array of freq values stored in f_axis. First element maps to 0Hz
+    if mod(N,2)==0 # case N even
+        f_axis = (-N/2:N/2-1)*Δf;
+        else # case N odd
+        f_axis = (-(N-1)/2 : (N-1)/2)*Δf;
+    end
+
+    CHIRP = fft(chirp)
+
+    Δt=dt
+    Δω = 2*pi/(N*Δt)   # Sample spacing in freq domain in rad/s
+    
+    ω = 0:Δω:(N-1)*Δω
+    f = ω/(2*π)
+    
+    ## Pass square wave through a BPF centred on fundamental ω0
+    ## The BPF is narrow enough only to allow the fundamental component to pass.
+    
+    ω0=40000*2π
+    
+    B = 0.3*ω0/(2π) # filter bandwidth in Hz
+    
+    # In the sampled frequency domain, position two rect() 
+    # i.e. centred on ω0 rad/s and on 2pi/Δt-ω0 rad/s.
+    
+    H = rect((ω .- ω0)/(2*π*B)) + rect( (ω .+ (ω0 .- 2*π/Δt) )/(2*π*B) )
+    
+    Y = CHIRP .* H[1:29200]
+
+    H1 = conj(Y);
+    
+
     ion()
-    fig = figure()
-    for n in 1:10
+    fig = figure(figsize=(10, 8))
+    # ax = gca()
+    # ax[:set_ylim]([0,3.3])
+    while true
         i =1 #data samples recieved
 
         # Clear buffer
@@ -71,7 +126,7 @@ function continuousplot(sp::SerialPort)
         while bytesavailable(sp) < 1
             continue # wait for a response    
         end  
-        sleep(0.05) # This extra delay helps with reliability - it gives the micro time to send all it needs to
+        sleep(0.005) # This extra delay helps with reliability - it gives the micro time to send all it needs to
 
         # Get timing information
         time = parse(Int,readline(sp)) 
@@ -84,34 +139,47 @@ function continuousplot(sp::SerialPort)
             continue # wait for a response    
         end 
 
-        sleep(0.05)
-        while true
-            if bytesavailable(sp) < 3
-                sleep(0.080) # Wait and check again
-                if bytesavailable(sp) < 2
-                    break
+        sleep(0.005)
+        @time begin
+            while true
+                if bytesavailable(sp) < 3
+                    sleep(0.0001) # Wait and check again
+                    if bytesavailable(sp) < 1
+                        break
+                    end
                 end
-            end
-            
-            try 
-                x_rx[i]=(parse(Int32,(readline(sp))))&0b00000000000000001111111111111111
-            catch
-                println("error")
-                continue;
-            end
-            
-            #println(i," ",x_rx[i])
-            i += 1    
-        end
 
-        println("Number of samples received ", i-1)
+                #println(i)
+                line = readline(sp)
+                #println(line)
+                if (length(line)>4)
+                    continue;
+                else
+                    x_rx[i]=(parse(Int16,line))
+                end
+                
+                #println(i," ",x_rx[i])
+                i += 1    
+            end
+            #code
+        end
+        println(i);
 
         # Convert ADC output to voltage
         v_rx=(x_rx*(3.3/(2^12)))
+        V_RX = fft(v_rx)
+        V_MF = H1.*V_RX;
+        v_mf = ifft(V_MF);
+        v_mf=v_mf.*r[1:29200].*r[1:29200]
+
 
         #Plot
         cla()
-        plot(t[1:29200],v_rx,".-")   
+        plot(r[1:25000],v_mf[1:25000],"-")  
+        ylim([-200,200])
+
+        
+        println("plotted") 
     end
 
     print("Done")
