@@ -219,7 +219,7 @@ function continuousplot(sp::SerialPort)
         v_anal=v_anal.*r[1:S].*r[1:S]
 
         cla()
-        plot(r[1:S],abs.(v_anal[1:S]))        
+        plot(r[1:25000],abs.(v_anal[1:25000]))        
         ylim([-900,900])
         
         println(size(v_rx))
