@@ -2,9 +2,9 @@
 # Data is read from a serial device and lines (but not individual keypresses)
 # are written to the device asynchronously.
 
-@time using LibSerialPort
-@time using PyPlot
-@time using FFTW
+using SerialPorts
+using PyPlot
+using FFTW
 include("chirp.jl");
 
 function serial_loop(sp::SerialPort)
@@ -34,8 +34,9 @@ end
 
 function console(args...)
 
+    
     if length(args) != 1
-        list_serialports()
+        show(list_serialports())
         return
     end
 
@@ -96,16 +97,16 @@ function continuousplot(sp::SerialPort)
     
     ω0=40000*2π
     
-    B = 0.3*ω0/(2π) # filter bandwidth in Hz
+    B = 3000 # filter bandwidth in Hz
     
     # In the sampled frequency domain, position two rect() 
     # i.e. centred on ω0 rad/s and on 2pi/Δt-ω0 rad/s.
     
     H = rect((ω .- ω0)/(2*π*B)) + rect( (ω .+ (ω0 .- 2*π/Δt) )/(2*π*B) )
     
-    Y = CHIRP .* H[1:29200]
+    #Y = CHIRP .* H[1:29200]
 
-    H1 = conj(Y);
+    MF = conj(CHIRP);
     
 
     ion()
@@ -115,9 +116,11 @@ function continuousplot(sp::SerialPort)
     while true
         i =1 #data samples recieved
 
+        data=""
+
         # Clear buffer
         while (bytesavailable(sp)>0)
-            read(sp,UInt8)
+            readavailable(sp)
         end
 
         # Transmit and Sample command
@@ -126,11 +129,28 @@ function continuousplot(sp::SerialPort)
         while bytesavailable(sp) < 1
             continue # wait for a response    
         end  
-        sleep(0.005) # This extra delay helps with reliability - it gives the micro time to send all it needs to
+        sleep(0.05) # This extra delay helps with reliability - it gives the micro time to send all it needs to
+
+        timeString=readavailable(sp)
+        timeArray=split(timeString,"\n")
 
         # Get timing information
-        time = parse(Int,readline(sp)) 
-        time2 = parse(Int,readline(sp)) 
+        time = parse(UInt16,timeArray[1])
+        timeSeconds = time*10^-6
+        println("Time taken to sample ",timeSeconds, " s")
+
+        timeBetweenTransmitAndRecieve = parse(UInt16,timeArray[2])
+        println("Time between transmitting and receiving ",timeBetweenTransmitAndRecieve, " us")
+
+        # Create time and distance arrays
+        dt=timeSeconds/S # Time per sample
+        t = collect(0:dt:timeSeconds); # t=0:dt:t_max defines a “range”.
+        r = c*t/2;
+
+        # Clear buffer
+        while (bytesavailable(sp)>0)
+            readavailable(sp)
+        end
 
         #Grab samples
         write(sp,"p") # Print DMA buffer
@@ -139,51 +159,75 @@ function continuousplot(sp::SerialPort)
             continue # wait for a response    
         end 
 
-        sleep(0.005)
+        sleep(0.05)
         @time begin
             while true
-                if bytesavailable(sp) < 3
-                    sleep(0.0001) # Wait and check again
+                if bytesavailable(sp) < 1
+                    sleep(0.010) # Wait and check again
                     if bytesavailable(sp) < 1
+                        println("Finished Reading")
                         break
                     end
                 end
-
-                #println(i)
-                line = readline(sp)
-                #println(line)
-                if (length(line)>4)
-                    continue;
-                else
-                    x_rx[i]=(parse(Int16,line))
-                end
-                
-                #println(i," ",x_rx[i])
-                i += 1    
+                data=string(data,readavailable(sp))
+                i += 1 
             end
-            #code
         end
-        println(i);
+
+        samples = split(data,"\r\n")
+        println("Number of samples received ", size(samples))
+
+        x_rx=zeros(Int16,S)
+        for n in 1:S
+            x_rx[n]=parse(UInt16,samples[n])
+        end
 
         # Convert ADC output to voltage
         v_rx=(x_rx*(3.3/(2^12)))
-        V_RX = fft(v_rx)
-        V_MF = H1.*V_RX;
-        v_mf = ifft(V_MF);
-        v_mf=v_mf.*r[1:29200].*r[1:29200]
 
+        V_RX = fft(v_rx)
+        V_RX = V_RX[1:S] .* H[1:S]
+
+        V_MF = MF[1:S].*V_RX[1:S];
+        v_mf = ifft(V_MF[1:S]);
+
+        #v_mf=v_mf.*r[1:S].*r[1:S]
 
         #Plot
-        cla()
-        plot(r[1:25000],v_mf[1:25000],"-")  
-        ylim([-200,200])
+        V_ANAL = 2*V_MF; # make a copy and double the values
+        N = length(V_MF);
 
+        if mod(N,2)==0 # case N even
+        neg_freq_range = Int(N/2):N; # Define range of “neg-freq” components
+        else # case N odd
+        neg_freq_range = Int((N+1)/2):N;
+        end
+
+        V_ANAL[neg_freq_range] .= 0; # Zero out neg components in 2nd half of array.
+        v_anal = ifft(V_ANAL);
+        V_ANAL = 2*V_MF; # make a copy and double the values
+        N = length(V_MF);
+
+        if mod(N,2)==0 # case N even
+        neg_freq_range = Int(N/2):N; # Define range of “neg-freq” components
+        else # case N odd
+        neg_freq_range = Int((N+1)/2):N;
+        end
+
+        V_ANAL[neg_freq_range] .= 0; # Zero out neg components in 2nd half of array.
+        v_anal = ifft(V_ANAL);
+        v_anal=v_anal.*r[1:S].*r[1:S]
+
+        cla()
+        plot(r[1:S],abs.(v_anal[1:S]))        
+        ylim([-900,900])
         
-        println("plotted") 
+        println(size(v_rx))
+        println(size(t))
     end
 
     print("Done")
     
 end
 
-#console(ARGS...)
+console(ARGS...)
