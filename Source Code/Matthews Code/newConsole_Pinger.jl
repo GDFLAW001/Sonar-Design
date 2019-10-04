@@ -127,6 +127,7 @@ function continuousplot(sp::SerialPort)
 
     ion()
     fig = figure(figsize=(10, 8))
+    
     # ax = gca()
     # ax[:set_ylim]([0,3.3])
     while true
@@ -221,11 +222,18 @@ function continuousplot(sp::SerialPort)
 
         v_anal=v_anal.*r.*r
 
+        cla()     
+        subplot(211)
+        plot(r[1:S],v_rx[1:S])          
+        ylim([0,3.3])
+        show() 
+
         cla()
-        #plot(r[1:S],abs.(v_anal[1:S]))
-        
-        plot(r[1:S],abs.(v_anal[1:S]))         
+        subplot(212)
+        plot(r[1:S],abs.(v_anal[1:S]))       
         ylim([0,1000])
+        show() 
+        
         
         println(size(v_rx))
         println(size(t))
