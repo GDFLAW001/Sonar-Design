@@ -29,6 +29,7 @@ bool          VERBOSE = true;
 bool          BINARY = true;
 // I/O-Pins
 const int readPin0             = A14;
+const int readPin1             = A15;
 const int ledPin               = LED_BUILTIN;
 
 //ADC & DMA Config
@@ -61,7 +62,7 @@ void setup() { // =====================================================
 
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(readPin0, INPUT); // single ended
-
+  pinMode(readPin1, INPUT);
   // Setup monitor pin
   pinMode(ledPin, OUTPUT);
   digitalWriteFast(ledPin, LOW); // LED low, setup start
@@ -127,7 +128,7 @@ void loop() { // ===================================================
       }else if (inByte == 'p') { // print buffer
           printBuffer(buf_a, 0, BUFFER_SIZE-1);
       }
-      if (inByte == 't') { // transmit and sample
+      if (inByte == 'l') { // transmit and sample
           uint32_t   transmit_time = micros();
           for (int i = 0; i < 7605; i++){
             DAC0(chirp[i]);
@@ -143,13 +144,37 @@ void loop() { // ===================================================
           }
           if ((aorb_busy == 1) || (aorb_busy == 2)) { stop_ADC(); }
           setup_ADC_single();
-          start_ADC();
-          //uint32_t   recieve_time = micros();
+          start_ADC(readPin0);
+          uint32_t   recieve_time = micros();
           wait_ADC_single();
           stop_ADC();
           adc->printError();
           adc->resetError();
-          //Serial.printf("%d\n", recieve_time-transmit_time);
+          Serial.printf("%d\n", recieve_time-transmit_time);
+      }
+      if (inByte == 'r') { // transmit and sample
+          uint32_t   transmit_time = micros();
+          for (int i = 0; i < 7605; i++){
+            DAC0(chirp[i]);
+            DAC0(chirp[i]);
+            DAC0(chirp[i]);
+            DAC0(chirp[i]);
+            DAC0(chirp[i]);
+            DAC0(chirp[i]);
+            DAC0(chirp[i]);
+            DAC0(chirp[i]);
+            DAC0(chirp[i]);
+            DAC0(chirp[i]);
+          }
+          if ((aorb_busy == 1) || (aorb_busy == 2)) { stop_ADC(); }
+          setup_ADC_single();
+          start_ADC(readPin1);
+          uint32_t   recieve_time = micros();
+          wait_ADC_single();
+          stop_ADC();
+          adc->printError();
+          adc->resetError();
+          Serial.printf("%d\n", recieve_time-transmit_time);
       }
     } // end if serial input available
   } // end check serial in time interval
@@ -194,12 +219,12 @@ void setup_ADC_single(void) {
   dma0.attachInterrupt(&dma0_isr_single);
 }
 
-void start_ADC(void) {
+void start_ADC(int readPin) {
     // Start adc
     aorb_busy  = 1;
     a_full    = 0;
     b_full    = 0;
-    adc->adc0->startSingleRead(readPin0);
+    adc->adc0->startSingleRead(readPin);
     // frequency, hardware trigger and dma
     adc->adc0->startPDB(freq); // set ADC_SC2_ADTRG
     adc->enableDMA(ADC_0); // set ADC_SC2_DMAEN
@@ -224,7 +249,7 @@ void wait_ADC_single() {
       break;
     }
   }
-  //Serial.printf("%d\n", end_time-start_time);
+  Serial.printf("%d\n", end_time-start_time);
 }
 
 void dma0_isr_single(void) {
