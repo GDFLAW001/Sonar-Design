@@ -106,7 +106,7 @@ void loop() { // ===================================================
       if (inByte == 'c') { // single block conversion
           if ((aorb_busy == 1) || (aorb_busy == 2)) { stop_ADC(); }
           setup_ADC_single();
-          start_ADC();
+          start_ADC(readPin0);
           wait_ADC_single();
           stop_ADC();
           adc->printError();
