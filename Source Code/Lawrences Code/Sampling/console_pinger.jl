@@ -93,10 +93,10 @@ function sample(sp::SerialPort,receiver)
     # Get timing information
     time = parse(UInt16,timeArray[1])
     timeSeconds = time*10^-6
-    println("Time taken to sample ",timeSeconds, " s")
+    #println("Time taken to sample ",timeSeconds, " s")
 
     timeBetweenTransmitAndRecieve = parse(UInt16,timeArray[2])
-    println("Time between transmitting and receiving ",timeBetweenTransmitAndRecieve, " us")
+    #println("Time between transmitting and receiving ",timeBetweenTransmitAndRecieve, " us")
 
     # Clear buffer
     while (bytesavailable(sp)>0)
@@ -125,7 +125,7 @@ function sample(sp::SerialPort,receiver)
     end
 
     samples = split(data,"\r\n")
-    println("Number of samples received ", size(samples))
+    #println("Number of samples received ", size(samples))
 
     for n in 1:S
         x_rx[n]=parse(UInt16,samples[n])
@@ -138,6 +138,8 @@ function sample(sp::SerialPort,receiver)
 end
 
 function continuousplot(sp::SerialPort)
+
+    
     match_chirp_v=(match_chirp*(3.3/(2^12)))
 
     #Setup variables
@@ -156,7 +158,7 @@ function continuousplot(sp::SerialPort)
     Upper=2100
     
     chirp=zeros(CS)
-       
+    
     i =0
     for n = 1:CS
         chirp[n]=1.65
@@ -192,22 +194,19 @@ function continuousplot(sp::SerialPort)
     Y = CHIRP 
     y = ifft(Y)
     
-
     MF = conj(Y);
-
-    # figure()
-    # plot(y)    
-    # show()
 
     ion()
     fig = figure(figsize=(10, 8))
     
+   
     while true
         x_rx_L = sample(sp,"l");
         sleep(0.005)
         x_rx_R = sample(sp,"r")
         sleep(0.005)
 
+        
         ## _________________PROCESSING FOR RIGHT____________________
         # Convert ADC output to voltage
         x_rx_R=(x_rx_R.*(3.3/(2^12)))
@@ -221,8 +220,6 @@ function continuousplot(sp::SerialPort)
 
         v_mf_R=v_mf_R.*r[1:CS].*r[1:CS]
 
-        V_ANAL_R = 2*V_MF_R; # make a copy and double the values
-        N = length(V_MF_R);
         V_ANAL_R = 2*V_MF_R; # make a copy and double the values
         N = length(V_MF_R);
         if mod(N,2)==0 # case N even
@@ -250,8 +247,6 @@ function continuousplot(sp::SerialPort)
 
         V_ANAL_L = 2*V_MF_L; # make a copy and double the values
         N = length(V_MF_L);
-        V_ANAL_L = 2*V_MF_L; # make a copy and double the values
-        N = length(V_MF_L);
         if mod(N,2)==0 # case N even
             neg_freq_range = Int(N/2):N; # Define range of "neg-freq" components
         else # case N odd
@@ -264,7 +259,7 @@ function continuousplot(sp::SerialPort)
 
         largest_val_L = 0;
         peak_time_L = 0;
-        for n = 1:CS
+        for n = 1:S
             if abs(v_anal_L[n])>abs(largest_val_L)
                 largest_val_L=v_anal_L[n]
                 peak_time_L = t[n]
@@ -273,7 +268,7 @@ function continuousplot(sp::SerialPort)
 
         largest_val_R = 0;
         peak_time_R = 0;
-        for n = 1:CS
+        for n = 1:S
             if abs(v_anal_R[n])>abs(largest_val_R)
                 largest_val_R=v_anal_R[n]
                 peak_time_R = t[n]
@@ -281,33 +276,46 @@ function continuousplot(sp::SerialPort)
         end
 
         k=1;
-        lambda = (2*pi*c)/ω;
-        d=2*lambda
+        lambda = (2*pi*c)/ω0;
+        d=2.125*lambda
         delta_psi = angle(largest_val_R .* conj(largest_val_L))
         ang = asin((lambda*(delta_psi + k*2*pi))/(2*pi*d));
 
         println(string("time to peak LEFT: ", peak_time_L));
         println(string("time to peak RIGHT: ", peak_time_R));
-        println(ang)
+        println(ang*(180/pi))
 
-        subplot(311)
+        ang_array = ones(120)
+        ang_array=ang_array.*-1
+        ang_array[Int(round(ang*(180/pi)) + 60)] = 1
+
+        subplot(511)
         cla()   
         plot(r[1:S],abs.(v_anal_L[1:S]))          
         ylim([0,1000])
 
-        subplot(312)  
+        subplot(512)  
         cla()
         plot(r[1:S],abs.(v_anal_R[1:S]))       
         ylim([0,1000])
 
-        subplot(313)
+        subplot(513)
         cla()
-        plot([-60:60],ang*(180/pi),".")
-        show()
-    end
+        plot(-60:59,ang_array,".")     
+        ylim([0,2])
 
-    print("Done")
-    
+        subplot(514)
+        cla()
+        plot(t[1:S],x_rx_L[1:S])     
+        ylim([0,3.3])
+
+        subplot(515)
+        cla()
+        plot(t[1:S],x_rx_R[1:S])     
+        ylim([0,3.3])
+        show()
+     end
+    print("Done")    
 end
 
 console(ARGS...)

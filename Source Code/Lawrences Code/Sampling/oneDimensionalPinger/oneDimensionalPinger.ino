@@ -130,6 +130,11 @@ void loop() { // ===================================================
       }
       if (inByte == 'l') { // transmit and sample
           uint32_t   transmit_time = micros();
+          
+          if ((aorb_busy == 1) || (aorb_busy == 2)) { stop_ADC(); }
+          setup_ADC_single();
+          start_ADC(readPin0);
+          uint32_t   recieve_time = micros();
           for (int i = 0; i < 7605; i++){
             DAC0(chirp[i]);
             DAC0(chirp[i]);
@@ -142,10 +147,6 @@ void loop() { // ===================================================
             DAC0(chirp[i]);
             DAC0(chirp[i]);
           }
-          if ((aorb_busy == 1) || (aorb_busy == 2)) { stop_ADC(); }
-          setup_ADC_single();
-          start_ADC(readPin0);
-          uint32_t   recieve_time = micros();
           wait_ADC_single();
           stop_ADC();
           adc->printError();
@@ -154,6 +155,10 @@ void loop() { // ===================================================
       }
       if (inByte == 'r') { // transmit and sample
           uint32_t   transmit_time = micros();
+          if ((aorb_busy == 1) || (aorb_busy == 2)) { stop_ADC(); }
+          setup_ADC_single();
+          start_ADC(readPin1);
+          uint32_t   recieve_time = micros();
           for (int i = 0; i < 7605; i++){
             DAC0(chirp[i]);
             DAC0(chirp[i]);
@@ -166,10 +171,6 @@ void loop() { // ===================================================
             DAC0(chirp[i]);
             DAC0(chirp[i]);
           }
-          if ((aorb_busy == 1) || (aorb_busy == 2)) { stop_ADC(); }
-          setup_ADC_single();
-          start_ADC(readPin1);
-          uint32_t   recieve_time = micros();
           wait_ADC_single();
           stop_ADC();
           adc->printError();
