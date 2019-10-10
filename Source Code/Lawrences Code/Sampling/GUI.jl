@@ -1,49 +1,100 @@
-# Basic serial console.
-# Data is read from a serial device and lines (but not individual keypresses)
-# are written to the device asynchronously.
-
+using Gtk, Gtk.ShortNames
 using SerialPorts
 using PyPlot
 using FFTW
 include("chirp.jl");
+# include("pinger.jl")
 
-function serial_loop(sp::SerialPort)
-    input_line = ""
+win = Window("Angle Finder 3000",500,200)
+v = Grid()
+b = Button("Start Plotting")
+b2 = Button("Stop Plotting")
+b3 = Button("Pause Plotting")
+getserialport_button= Button("Get Serial Ports")
+ent = GtkEntry()
+set_gtk_property!(ent,:text,"")
+exit = GtkButton("Exit")
 
-    println("Starting I/O loop. Press ESC [return] to quit")
+space = GtkLabel("")
+space2 = GtkLabel("")
+space3 = GtkLabel("")
+space4 = GtkLabel("")
+space5 = GtkLabel("")
+space6 = GtkLabel("")
+space7 = GtkLabel("")
+space8 = GtkLabel("")
 
-    while true
-        # Poll for new data without blocking
-        @async input_line = readline(keep=true)
+global stopped = false
+global paused = false
 
-        occursin("\e", input_line) && exit()
+serial = GtkLabel("Enter Serial Port")
+get_serial = GtkLabel("No ports yet")
 
-        # Send user input to device
-        if endswith(input_line, '\n')
-            if (chomp(input_line)=="start")
-                println("started")
-                continuousplot(sp)
-            end
-            input_line="";
-        end
+v[1,1]=space
 
-        # Give the queued tasks a chance to run
-        sleep(0.1)
-    end
+v[1,2]=getserialport_button
+v[2,2] = get_serial    # Cartesian coordinates, g[x,y]
+v[3,2] = space2
+v[4,2] = space3
+v[5,2] = space4
+
+v[1,3]=serial
+v[2,3]=ent
+v[3,3]=space5
+v[4,3]=space6
+v[5,3]=space7
+
+v[1,4] = space8
+
+v[2,5] = b
+v[3,5] = b2
+v[4,5] = b3
+
+v[3,6] = exit
+
+set_gtk_property!(v, :column_homogeneous, true)
+set_gtk_property!(v, :column_spacing, 15)  # introduce a 15-pixel gap between columns
+push!(win, v)
+
+showall(win)
+
+function start_plot()
+    str = get_gtk_property(ent,:text,String)
+    # if(paused)
+    #     global paused = false
+    # end
+    # println(string("/dev/ttyACM", str))
+    # mcu = SerialPort(string("/dev/ttyACM", port), 9600)
+    
+    global stopped = false
+    global paused = false
+    continuousplot()#mcu)
+    return nothing
 end
 
-function console(args...)
+function pause_plot()
+    global paused=true;
+    return nothing
+end
 
-    
-    if length(args) != 1
-        show(list_serialports())
-        return
-    end
+function stop_plot()
+    global stopped=true;
+    return nothing
+end
 
-    # Open a serial connection to the microcontroller
-    mcu = SerialPort(string("/dev/ttyACM", args[1]), 9600)
+function get_ports()
+    ports = list_serialports()
+    GAccessor.text(get_serial,ports[1])
+    return nothing
+end
 
-    serial_loop(mcu)
+signal_connect(x -> start_plot(), b, "clicked")
+signal_connect(x -> stop_plot(), b2, "clicked")
+signal_connect(x -> pause_plot(), b3, "clicked")
+signal_connect(x -> get_ports(), getserialport_button, "clicked")
+signal_connect(exit, :clicked) do widget
+    destroy(win)
+    println("Exit")
 end
 
 function rect(t)
@@ -60,7 +111,6 @@ function rect(t)
         end
     end
     return x
-
 end
 
 function sample(sp::SerialPort,receiver)
@@ -137,9 +187,7 @@ function sample(sp::SerialPort,receiver)
     return x_rx;
 end
 
-function continuousplot(sp::SerialPort)
-
-    
+function continuousplot()#sp::SerialPort)
     match_chirp_v=(match_chirp*(3.3/(2^12)))
 
     #Setup variables
@@ -201,11 +249,30 @@ function continuousplot(sp::SerialPort)
     
    
     while true
-        x_rx_L = sample(sp,"l");
-        sleep(0.005)
-        x_rx_R = sample(sp,"r")
-        sleep(0.005)
+        sleep(0.1)
+        # while(paused)
+        #     if(stopped)
+        #         close()
+        #         return nothing
+        #     end
+        #     sleep(0.05)
+        #     continue
+        # end
+        
+        # if(stopped)
+        #     close()
+        #     return nothing
+        # end
 
+        # x_rx_L = sample(sp,"l");
+        # sleep(0.005)
+        # x_rx_R = sample(sp,"r")
+        # sleep(0.005)
+
+        x_rx_L = zeros(UInt16,CS)
+        x_rx_R = zeros(UInt16,CS)
+
+        println("test")
         
         ## _________________PROCESSING FOR RIGHT____________________
         # Convert ADC output to voltage
@@ -255,7 +322,6 @@ function continuousplot(sp::SerialPort)
         V_ANAL_L[neg_freq_range] .= 0; # Zero out neg components in 2nd half of array.
         v_anal_L = ifft(V_ANAL_L);
 
-        v_anal = v_anal.*exp.(-j*2*pi*f0*t);
         v_anal_L=v_anal_L.*r.*r
 
 
@@ -316,8 +382,15 @@ function continuousplot(sp::SerialPort)
         plot(t[1:S],x_rx_R[1:S])     
         ylim([0,3.3])
         show()
-     end
+    end
     print("Done")    
+    return nothing
 end
 
-console(ARGS...)
+if !isinteractive()
+    c = Condition()
+    signal_connect(win, :destroy) do widget
+        notify(c)
+    end
+    wait(c)
+end

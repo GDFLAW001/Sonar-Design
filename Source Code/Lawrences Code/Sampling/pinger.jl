@@ -7,44 +7,34 @@ using PyPlot
 using FFTW
 include("chirp.jl");
 
-function serial_loop(sp::SerialPort)
-    input_line = ""
 
-    println("Starting I/O loop. Press ESC [return] to quit")
 
-    while true
-        # Poll for new data without blocking
-        @async input_line = readline(keep=true)
-
-        occursin("\e", input_line) && exit()
-
-        # Send user input to device
-        if endswith(input_line, '\n')
-            if (chomp(input_line)=="start")
-                println("started")
-                continuousplot(sp)
-            end
-            input_line="";
-        end
-
-        # Give the queued tasks a chance to run
-        sleep(0.1)
-    end
+function getPorts()
+    return list_serialports()
 end
 
-function console(args...)
-
+function start_pinger(port)
+    if(paused)
+        global paused = false
+    end
+    println(string("/dev/ttyACM", port))
+    # mcu = SerialPort(string("/dev/ttyACM", port), 9600)
     
-    if length(args) != 1
-        show(list_serialports())
-        return
-    end
-
-    # Open a serial connection to the microcontroller
-    mcu = SerialPort(string("/dev/ttyACM", args[1]), 9600)
-
-    serial_loop(mcu)
+    global stopped = false
+    global paused = false
+    continuousplot()#mcu)
+    return nothing
 end
+
+function pause_pinger()
+    global paused=true;
+    return nothing
+end
+
+function stop_pinger()
+    global stopped=true;
+    return nothing
+end 
 
 function rect(t)
     N = length(t)
@@ -60,7 +50,6 @@ function rect(t)
         end
     end
     return x
-
 end
 
 function sample(sp::SerialPort,receiver)
@@ -137,9 +126,7 @@ function sample(sp::SerialPort,receiver)
     return x_rx;
 end
 
-function continuousplot(sp::SerialPort)
-
-    
+function continuousplot()#sp::SerialPort)
     match_chirp_v=(match_chirp*(3.3/(2^12)))
 
     #Setup variables
@@ -201,11 +188,30 @@ function continuousplot(sp::SerialPort)
     
    
     while true
-        x_rx_L = sample(sp,"l");
-        sleep(0.005)
-        x_rx_R = sample(sp,"r")
-        sleep(0.005)
+        sleep(0.1)
+        while(paused)
+            if(stopped)
+                close()
+                return nothing
+            end
+            sleep(0.05)
+            continue
+        end
+        
+        if(stopped)
+            close()
+            return nothing
+        end
 
+        # x_rx_L = sample(sp,"l");
+        # sleep(0.005)
+        # x_rx_R = sample(sp,"r")
+        # sleep(0.005)
+
+        x_rx_L = zeros(UInt16,CS)
+        x_rx_R = zeros(UInt16,CS)
+
+        println("test")
         
         ## _________________PROCESSING FOR RIGHT____________________
         # Convert ADC output to voltage
@@ -255,7 +261,6 @@ function continuousplot(sp::SerialPort)
         V_ANAL_L[neg_freq_range] .= 0; # Zero out neg components in 2nd half of array.
         v_anal_L = ifft(V_ANAL_L);
 
-        v_anal = v_anal.*exp.(-j*2*pi*f0*t);
         v_anal_L=v_anal_L.*r.*r
 
 
@@ -318,6 +323,5 @@ function continuousplot(sp::SerialPort)
         show()
      end
     print("Done")    
+    return nothing
 end
-
-console(ARGS...)
