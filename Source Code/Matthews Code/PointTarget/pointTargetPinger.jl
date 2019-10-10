@@ -2,9 +2,9 @@
 # Data is read from a serial device and lines (but not individual keypresses)
 # are written to the device asynchronously.
 
-using SerialPorts
-using PyPlot
-using FFTW
+@time using SerialPorts
+@time using PyPlot
+@time using FFTW
 include("chirp.jl");
 
 function serial_loop(sp::SerialPort)
@@ -222,14 +222,15 @@ function continuousplot(sp::SerialPort)
 
         v_anal=v_anal.*r.*r
 
-        cla()     
+           
         subplot(211)
+        cla()  
         plot(r[1:S],v_rx[1:S])          
-        ylim([0,3.3])
-        show() 
+        ylim([0,3.3]) 
 
-        cla()
+        
         subplot(212)
+        cla()
         plot(r[1:S],abs.(v_anal[1:S]))       
         ylim([0,1000])
         show() 
